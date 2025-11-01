@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/label-has-associated-control */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { Todo } from '../../types/Todo';
 import cn from 'classnames';
 
@@ -16,11 +16,11 @@ export const TodoInfo: React.FC<Props> = ({
   handleChange,
   handleDelete,
 }) => {
-  const [title, setTitle] = useState(todo.title);
-  const [editStatus, setEditStatus] = useState<boolean>(false);
-  const inputField = useRef<HTMLInputElement>(null);
+  const [title, setTitle] = React.useState(todo.title);
+  const [editStatus, setEditStatus] = React.useState<boolean>(false);
+  const inputField = React.useRef<HTMLInputElement>(null);
 
-  const handleTitleChange = useCallback(
+  const handleTitleChange = React.useCallback(
     (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
       event.preventDefault();
 
@@ -61,7 +61,7 @@ export const TodoInfo: React.FC<Props> = ({
     }
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (editStatus) {
       inputField.current?.focus();
     }

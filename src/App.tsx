@@ -25,8 +25,8 @@ export const App: React.FC = () => {
 
   const [todosInLoad, setTodosInLoad] = useState<number[]>([]);
   const [activeAmount, setActiveAmount] = useState(0);
-  const inputField = useRef<HTMLInputElement | null>(null);
 
+  const inputField = useRef<HTMLInputElement | null>(null);
   const timerId = useRef(0);
   //#endregion
 
@@ -316,6 +316,7 @@ export const App: React.FC = () => {
           handleChange={handleChange}
           inLoading={todosInLoad}
         />
+
         {tempTodo && (
           <TodoInfo
             todo={tempTodo}
