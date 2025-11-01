@@ -1,37 +1,44 @@
 /* eslint-disable jsx-a11y/label-has-associated-control */
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Todo } from '../../types/Todo';
 import cn from 'classnames';
 
 interface Props {
   todo: Partial<Todo>;
-  inLoading: boolean;
+  loading: boolean;
   handleChange: (todoId: number, changed: Partial<Todo>) => Promise<void>;
   handleDelete: (todoIds: number) => Promise<void>;
 }
 
 export const TodoInfo: React.FC<Props> = ({
   todo,
-  inLoading = false,
+  loading = false,
   handleChange,
   handleDelete,
 }) => {
   const [title, setTitle] = useState(todo.title);
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const inputPlace = useRef<HTMLInputElement>(null);
+  const [editStatus, setEditStatus] = useState<boolean>(false);
+  const inputField = useRef<HTMLInputElement>(null);
 
-  const handleTitleChange = (
-    event: React.MouseEvent<HTMLSpanElement, MouseEvent>,
-  ) => {
-    event.preventDefault();
+  const handleTitleChange = useCallback(
+    (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+      event.preventDefault();
 
-    if (todo.id) {
-      setIsEditing(true);
-    }
-  };
+      if (todo.id) {
+        setEditStatus(true);
+      }
+    },
+    [todo.id],
+  );
 
   const handleChangeSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (title?.trim() === todo.title) {
+      setEditStatus(false);
+
+      return;
+    }
 
     if (!title?.trim() && todo.id) {
       handleDelete(todo.id);
@@ -40,15 +47,25 @@ export const TodoInfo: React.FC<Props> = ({
     if (title?.trim() && todo.title !== title && todo.id) {
       handleChange(todo.id, { title: title.trim() })
         .then(() => {
-          setIsEditing(false);
+          setEditStatus(false);
         })
         .catch(() => {
-          if (inputPlace.current) {
-            inputPlace.current.focus();
-          }
+          inputField.current?.focus();
         });
     }
   };
+
+  const handleChangeCancel = (event: React.KeyboardEvent<HTMLFormElement>) => {
+    if (event.key === 'ArrowUp' || event.key === 'Escape') {
+      setEditStatus(false);
+    }
+  };
+
+  useEffect(() => {
+    if (editStatus) {
+      inputField.current?.focus();
+    }
+  }, [editStatus]);
 
   return (
     <div data-cy="Todo" className={cn('todo', { completed: todo.completed })}>
@@ -64,13 +81,14 @@ export const TodoInfo: React.FC<Props> = ({
         />
       </label>
 
-      {isEditing ? (
+      {editStatus ? (
         <form
           onSubmit={event => handleChangeSubmit(event)}
           onBlur={event => handleChangeSubmit(event)}
+          onKeyDown={event => handleChangeCancel(event)}
         >
           <input
-            ref={inputPlace}
+            ref={inputField}
             data-cy="TodoTitleField"
             type="text"
             className="todo__title-field"
@@ -101,7 +119,7 @@ export const TodoInfo: React.FC<Props> = ({
 
       <div
         data-cy="TodoLoader"
-        className={cn('modal', 'overlay', { 'is-active': inLoading })}
+        className={cn('modal', 'overlay', { 'is-active': loading })}
       >
         <div className="modal-background has-background-white-ter" />
         <div className="loader" />

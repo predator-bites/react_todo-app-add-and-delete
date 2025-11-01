@@ -22,7 +22,7 @@ export const TodoList: React.FC<Props> = ({
           todo={todo}
           handleDelete={handleDelete}
           handleChange={handleChange}
-          inLoading={inLoading.includes(todo.id)}
+          loading={inLoading.includes(todo.id)}
           key={todo.id}
         />
       ))}

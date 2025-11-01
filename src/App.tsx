@@ -14,7 +14,6 @@ import { Err } from './types/Error';
 export const App: React.FC = () => {
   //#region Hooks
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [allTodos, setAllTodos] = useState<Todo[]>([]);
 
   const [error, setError] = useState<Err>('');
   const [title, setTitle] = useState('');
@@ -24,9 +23,7 @@ export const App: React.FC = () => {
     null,
   );
 
-  //helpful states
   const [todosInLoad, setTodosInLoad] = useState<number[]>([]);
-  const [allCompleted, setAllCompleted] = useState(false);
   const [activeAmount, setActiveAmount] = useState(0);
   const inputField = useRef<HTMLInputElement | null>(null);
 
@@ -85,7 +82,6 @@ export const App: React.FC = () => {
 
   const handleSubmit = (ev: React.FormEvent) => {
     ev.preventDefault();
-    setAllCompleted(false);
 
     const newTodo: Omit<Todo, 'id'> = {
       title: title.trim(),
@@ -104,46 +100,39 @@ export const App: React.FC = () => {
       .then(res => {
         handleReset();
 
-        setAllTodos(currentTodos => [...currentTodos, res]);
+        setTodos(currentTodos => [...currentTodos, res]);
+        setActiveAmount(c => c + 1);
       })
       .catch(() => {
         handleErrors('Unable to add a todo');
       })
       .finally(() => {
-        setActiveAmount(c => c + 1);
         setTempTodo(null);
       });
   };
 
   const handleActiveAmountChange = useCallback((tds: Todo[]) => {
-    setActiveAmount(
-      tds.reduce((prv, td) => {
+    setActiveAmount(() => {
+      const act = tds.reduce((prv, td) => {
         if (!td.completed) {
           return prv + 1;
         }
 
         return prv;
-      }, 0),
-    );
+      }, 0);
+
+      return act;
+    });
   }, []);
 
-  const handleChange = (
-    todoId: number,
-    changed: Partial<Todo>,
-    forAll = false,
-  ) => {
+  const handleChange = (todoId: number, changed: Partial<Todo>) => {
     handleLoading(todoId, 'add');
 
     return reqs
       .updateTodo(todoId, changed)
       .then(() => {
-        setAllTodos(c => {
+        setTodos(c => {
           return c.map(td => {
-            // Dont work with server now, only local changes;
-            if (forAll) {
-              return { ...td, ...changed };
-            }
-
             if (td.id === todoId) {
               return { ...td, ...changed };
             }
@@ -157,7 +146,6 @@ export const App: React.FC = () => {
         throw e;
       })
       .finally(() => {
-        handleActiveAmountChange(allTodos);
         handleLoading(todoId, 'remove');
       });
   };
@@ -168,7 +156,7 @@ export const App: React.FC = () => {
     return reqs
       .deleteTodo(todoId)
       .then(() => {
-        setAllTodos(c => {
+        setTodos(c => {
           let actAmount = activeAmount;
 
           const res = c.filter(td => {
@@ -198,66 +186,35 @@ export const App: React.FC = () => {
   };
 
   const handleCleanCompleted = () => {
-    for (const todo of allTodos.filter(td => td.completed)) {
+    for (const todo of todos.filter(td => td.completed)) {
       handleDelete(todo.id);
     }
   };
 
   const handleAllCompleted = () => {
-    const changeSide = allCompleted ? false : true;
+    let changeSide;
 
-    allTodos.forEach(td => {
-      handleChange(td.id, { completed: changeSide });
+    if (activeAmount) {
+      changeSide = true;
+    } else {
+      changeSide = false;
+    }
+
+    todos.forEach(td => {
+      if (!td.completed && changeSide) {
+        handleChange(td.id, { completed: changeSide });
+      } else if (td.completed && !changeSide) {
+        handleChange(td.id, { completed: changeSide });
+      }
     });
-
-    setAllCompleted(changeSide);
-    setActiveAmount(changeSide ? 0 : allTodos.length);
   };
 
-  //#endregion
-
-  //#region Loading, focusing and filtering todos
-  useEffect(() => {
-    if (
-      error === 'Unable to add a todo' ||
-      error === 'Title should not be empty'
-    ) {
-      if (inputField.current) {
-        inputField.current.focus();
-      }
-    }
-
-    inputField.current?.focus();
-  }, [error, allTodos.length]);
-
-  useEffect(() => {
-    reqs
-      .getTodos()
-      .then(tds => {
-        setAllTodos(tds);
-        setTodos(tds);
-        handleActiveAmountChange(tds);
-      })
-      .catch(e => {
-        handleErrors('Unable to load todos');
-        throw e;
-      });
-
-    if (inputField.current) {
-      inputField.current.focus();
-    }
-  }, [handleActiveAmountChange, handleErrors]);
-
-  useEffect(() => {
-    handleActiveAmountChange(allTodos);
-
+  const handleFiltering = () => {
     if (sortType === 'all') {
-      setTodos(allTodos);
-
-      return;
+      return todos;
     }
 
-    const newTds = allTodos.filter(todo => {
+    const newTds = todos.filter(todo => {
       switch (sortType) {
         case 'active':
           if (!todo.completed) {
@@ -278,8 +235,43 @@ export const App: React.FC = () => {
       }
     });
 
-    setTodos(newTds);
-  }, [sortType, allTodos, handleActiveAmountChange]);
+    return newTds;
+  };
+  //#endregion
+
+  //#region Loading, focusing and filtering todos
+  useEffect(() => {
+    if (
+      error === 'Unable to add a todo' ||
+      error === 'Title should not be empty'
+    ) {
+      if (inputField.current) {
+        inputField.current.focus();
+      }
+    }
+
+    inputField.current?.focus();
+  }, [error, todos.length]);
+
+  useEffect(() => {
+    reqs
+      .getTodos()
+      .then(tds => {
+        setTodos(tds);
+      })
+      .catch(e => {
+        handleErrors('Unable to load todos');
+        throw e;
+      });
+
+    if (inputField.current) {
+      inputField.current.focus();
+    }
+  }, [handleErrors]);
+
+  useEffect(() => {
+    handleActiveAmountChange(todos);
+  }, [todos, handleActiveAmountChange]);
   //#endregion
 
   //#region TSX
@@ -296,7 +288,9 @@ export const App: React.FC = () => {
           {todos.length > 0 && (
             <button
               type="button"
-              className={cn('todoapp__toggle-all', { active: allCompleted })}
+              className={cn('todoapp__toggle-all', {
+                active: activeAmount === 0 && todos.length - activeAmount > 0,
+              })}
               data-cy="ToggleAllButton"
               onClick={handleAllCompleted}
             />
@@ -317,7 +311,7 @@ export const App: React.FC = () => {
         </header>
 
         <TodoList
-          todos={todos}
+          todos={handleFiltering()}
           handleDelete={handleDelete}
           handleChange={handleChange}
           inLoading={todosInLoad}
@@ -325,16 +319,16 @@ export const App: React.FC = () => {
         {tempTodo && (
           <TodoInfo
             todo={tempTodo}
-            inLoading={true}
+            loading={true}
             handleDelete={handleDelete}
             handleChange={handleChange}
           />
         )}
 
-        {allTodos.length !== 0 && (
+        {todos.length !== 0 && (
           <TodoFooter
             todoAmount={activeAmount}
-            completedAmount={allTodos.length - activeAmount}
+            completedAmount={todos.length - activeAmount}
             sortType={sortType}
             onSortChange={handlingSortTypeChange}
             handleCleanCompleted={handleCleanCompleted}
